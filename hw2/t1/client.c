@@ -1,7 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h> #include <arpa/inet.h>
+#include <unistd.h> 
+#include <arpa/inet.h>
 #include <signal.h>
 #include <sys/epoll.h>
 #include <pthread.h>
@@ -21,10 +22,10 @@ static void sigint_handler(int signo)
 {
   clientIsActive = 0;
   (void)printf("Reg sigINT!\n");
-  sendto_named("Left the chat");
+  sendto_named("/exit");
   (void)close(epoll_fd);
   (void)close(client_socket);
-  sleep(2);
+  sleep(1);
   (void)printf("Caught sigINT!\n");
   exit(EXIT_SUCCESS);
 }
@@ -149,9 +150,17 @@ void* kb_reader(void* args){
 	while(clientIsActive){
 		//printf("Message: ");
 		fgets(message, MAX_LINE, stdin);
-		int c = strlen(message) - 1;
+    int c = strlen(message) - 1;
 		message[c] = '\0';
     sendto_named(message);
+    if(memcmp("/exit", message, strlen("/exit"))==0){
+      (void)close(epoll_fd);
+      (void)close(client_socket);
+      sleep(1);
+      //(void)printf("/exit code!\n");
+      exit(EXIT_SUCCESS);
+    }
+		
 		// snprintf(named_message, MAX_LINE, "%s%s%s", name, ": ", message);
     // int ret = sendto(client_socket, named_message, strlen(named_message), 0, (struct sockaddr*)&server_addr, sizeof(server_addr));
     // //printf("sendbuffer = %s\n", message);
@@ -167,7 +176,7 @@ void* kb_reader(void* args){
 void* updater(void* args){
 	while(clientIsActive){
 		//printf("Message: ");
-    sendto_named("upd");
+    //sendto_named("upd");
 		// snprintf(named_message, MAX_LINE, "%s%s", name, ": upd");
     // int ret = sendto(client_socket, named_message,
     // strlen(named_message), 0,

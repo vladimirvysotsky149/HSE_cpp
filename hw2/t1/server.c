@@ -56,83 +56,108 @@ struct sockaddr_in *sock_addr)
      exit(EXIT_FAILURE);
  }
 
- sock_addr->sin_port = htons(
- (uint16_t)port);
- printf("Port: %d\n",
- ntohs(sock_addr->sin_port));
+ sock_addr->sin_port = htons((uint16_t)port);
+ printf("Port: %d\n", ntohs(sock_addr->sin_port));
 }
 
-char client_collection[16][16];
-int client_not_upd[16];
+uint16_t clients_collection[16];
+struct sockaddr_in clients_addr[16];
+//int client_not_upd[16];
 int client_count = 0;
 
-int get_usr_index(char *msg){
-    int name_i = (int)(strchr(msg, ':')-msg);
-    char name_str[16];
-    strncpy(name_str, msg, name_i);
-    name_str[name_i] = '\0';
-    char buf_a[256];
+//int get_usr_index(char *msg){
+//    int name_i = (int)(strchr(msg, ':')-msg);
+//    char name_str[16];
+//    strncpy(name_str, msg, name_i);
+//    name_str[name_i] = '\0';
+//    char buf_a[256];
+//
+//    int found = 0;
+//    for(int i = 0; i < client_count; i++){
+//        if(i < 16){
+//            //printf("Check %s with %s size %d", name_str, client_collection[i], name_i);
+//            if(memcmp(name_str, client_collection[i], name_i)==0){
+//                return i+1;
+//            }
+//        }
+//    }
+//    return 0;
+//}
+//
+//void set_usrs_wait_read_flag(char *msg){
+//    printf("Set flag\n");
+//    for(int i = 0; i < client_count; i++){
+//        client_not_upd[i] = 1;
+//    }
+//}
+//
+//void clr_usr_wait_read_flag(char *msg){
+//    printf("Clr flag\n");
+//    int usr = get_usr_index(msg);
+//    if(usr > 0){
+//        client_not_upd[usr-1] = 0;
+//    }
+//}
+//
+//int check_usr_wait_read_flag(char *msg){
+//    
+//    int usr = get_usr_index(msg);
+//    printf("Check flag for user %d\n", usr);
+//    if(usr > 0){
+//        return client_not_upd[usr-1];
+//    }
+//    return 0;
+//}
+//
+//int check_usrs_wait_read_flag(char *msg){
+//    printf("Check flags\n");
+//    for(int i = 0; i < client_count; i++){
+//        if(client_not_upd[i] > 0)
+//            return 1;
+//    }
+//    return 0;
+//}
 
-    int found = 0;
+//void add_usr(char *msg){
+//    //printf("Try add usr from %s\n", msg);
+//    int name_i = (int)(strchr(msg, ':')-msg);
+//    //printf("Shift is %d\n", name_i);
+//    char name_str[16];
+//    strncpy(name_str, msg, name_i);
+//    name_str[name_i] = '\0';
+//    //printf("Try add usr %s\n", name_str);
+//    char buf_a[256];
+//
+//    int found = 0;
+//    for(int i = 0; i < client_count; i++){
+//        if(i < 16){
+//            if(memcmp(name_str, client_collection[i], name_i)==0){
+//                found++;
+//            }
+//        }
+//        else{
+//            client_count = 0;
+//        }
+//    }
+//    if(found == 0){
+//        memcpy(client_collection[client_count], name_str, name_i+1);
+//        client_count++;
+//        printf("Add usr %s\n", name_str);
+//    }
+//}
+
+void print_usrs(){
+  printf("Total number of usrs: %d\n", client_count);
+  for(int i = 0; i < client_count; i++){
+        printf("usr %d: port %d\n", i, clients_addr[i].sin_port);
+  }
+}
+
+void add_usr(struct sockaddr_in *caddr){
+  int found = 0;
     for(int i = 0; i < client_count; i++){
         if(i < 16){
-            //printf("Check %s with %s size %d", name_str, client_collection[i], name_i);
-            if(memcmp(name_str, client_collection[i], name_i)==0){
-                return i+1;
-            }
-        }
-    }
-    return 0;
-}
-
-void set_usrs_wait_read_flag(char *msg){
-    printf("Set flag\n");
-    for(int i = 0; i < client_count; i++){
-        client_not_upd[i] = 1;
-    }
-}
-
-void clr_usr_wait_read_flag(char *msg){
-    printf("Clr flag\n");
-    int usr = get_usr_index(msg);
-    if(usr > 0){
-        client_not_upd[usr-1] = 0;
-    }
-}
-
-int check_usr_wait_read_flag(char *msg){
-    
-    int usr = get_usr_index(msg);
-    printf("Check flag for user %d\n", usr);
-    if(usr > 0){
-        return client_not_upd[usr-1];
-    }
-    return 0;
-}
-
-int check_usrs_wait_read_flag(char *msg){
-    printf("Check flags\n");
-    for(int i = 0; i < client_count; i++){
-        if(client_not_upd[i] > 0)
-            return 1;
-    }
-    return 0;
-}
-
-void add_usr(char *msg){
-    //printf("Try add usr from %s\n", msg);
-    int name_i = (int)(strchr(msg, ':')-msg);
-    //printf("Shift is %d\n", name_i);
-    char name_str[16];
-    strncpy(name_str, msg, name_i);
-    name_str[name_i] = '\0';
-    //printf("Try add usr %s\n", name_str);
-    char buf_a[256];
-
-    int found = 0;
-    for(int i = 0; i < client_count; i++){
-        if(i < 16){
-            if(memcmp(name_str, client_collection[i], name_i)==0){
+            if(caddr->sin_port == clients_addr[i].sin_port){
                 found++;
             }
         }
@@ -141,11 +166,43 @@ void add_usr(char *msg){
         }
     }
     if(found == 0){
-        memcpy(client_collection[client_count], name_str, name_i+1);
+        clients_addr[client_count] = *caddr;
         client_count++;
-        printf("Add usr %s\n", name_str);
+        printf("Add usr %d\n", caddr->sin_port);
+        print_usrs();
     }
 }
+
+void delete_user(struct sockaddr_in *caddr){
+  int found = 0;
+  int user = 0;
+  uint16_t uport = 0;
+  printf("Try delete usr %d\n", caddr->sin_port);
+    for(int i = 0; i < client_count; i++){
+        if(i < 16){
+            if(caddr->sin_port == clients_addr[i].sin_port){
+                found++;
+                user = i;
+                uport = clients_addr[i].sin_port;
+                break;
+            }
+        }
+        else{
+            return;
+        }
+    }
+    if(found != 0){
+      client_count--;
+      for(int i = user; i < client_count; i++){
+        clients_addr[user] = clients_addr[user+1];
+      }
+              printf("Delete usr %d\n", uport);
+        print_usrs();
+    }
+
+}
+
+
 
 char saved_buf[1024];
 int saved_buf_shift = 0;
@@ -160,49 +217,34 @@ void recv_send(char *buffer, struct sockaddr_in *client_addr_old)
 
   len = recvfrom(server_socket, buffer, BUFFER_SIZE, MSG_WAITALL, (struct sockaddr*)&client_addr, &client_addr_len);
 
-  //printf("Adddr addr_len %d, len is %d\n", client_addr_len, len);
-  //static struct sockaddr_in addr;
-  //char info[32];
-  //if(client_addr == NULL){
-  //  printf("client addr is null");
-  //}
-  //else{
-  //  memcpy(info, client_addr, client_addr_len);
-  //  info[31] = '\0';
   printf("client addr as str"ANSI_COLOR_YELLOW"%d\n"ANSI_COLOR_RESET, client_addr.sin_port);
-  //}
-  //memcpy(&addr, client_addr, client_addr_len);
-
-    
+  add_usr(&client_addr);  
 
   //printf(ANSI_COLOR_YELLOW "Rcv len %d\n" ANSI_COLOR_RESET, len);
-    char keystr[] = "upd";
+    char keystr[] = "/exit";
     if (len > 0) {
     buffer[len] = '\0';
     }
     int name_i = (int)(strchr(buffer, ':')-buffer);
     char noname_buf[BUFFER_SIZE];
+    char name_buf[16];
     strncpy(noname_buf, buffer+name_i+2, sizeof(keystr));
+    strncpy(name_buf, buffer, name_i);
+    name_buf[name_i] = '\0';
     //printf("Buf %s\n", noname_buf);
     int res = memcmp(keystr, noname_buf, sizeof(keystr));
     if(res == 0){
-        printf("update str %d\n", res);
-        if(check_usr_wait_read_flag(buffer)){
-            sendto(server_socket, saved_buf, saved_buf_shift, 0, (struct sockaddr*)&client_addr, client_addr_len);
-        }
-        clr_usr_wait_read_flag(buffer);
-        if(check_usrs_wait_read_flag(buffer)==0)
-            saved_buf_shift = 0;
+        printf("%s str %d\n", keystr, res);
+        delete_user(&client_addr);
+        buffer[0] = '\0';
+        snprintf(buffer, 256, "%s%s%s", "[Admin]: ", name_buf, " Left the chat");
     }
-    else{
-        printf("str %s\n", buffer);
-        add_usr(buffer);
-        memcpy(&saved_buf[saved_buf_shift], buffer, strlen(buffer));
-        saved_buf_shift += strlen(buffer);
-        saved_buf[saved_buf_shift] = ' ';
-        saved_buf_shift++;
-        set_usrs_wait_read_flag(buffer);
-    }
+
+      for(int i = 0; i < client_count; i++){
+        socklen_t client_addr_len = sizeof(clients_addr[i]);
+        sendto(server_socket, buffer, strlen(buffer), 0, (struct sockaddr*)&clients_addr[i], client_addr_len);
+      }
+
 
   if (len > 0) {
     buffer[len] = '\0';
