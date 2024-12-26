@@ -1,11 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <arpa/inet.h>
+#include <unistd.h> #include <arpa/inet.h>
 #include <signal.h>
 #include <sys/epoll.h>
 #include <pthread.h>
+#include "colors.h"
 
 #define BUFFER_SIZE 1024
 #define MAX_EVENTS 2
@@ -13,9 +13,15 @@
 int client_socket = -1;
 int epoll_fd = -1;
 char* name;
+sig_atomic_t clientIsActive = 0;
+
+static void sendto_named(char *msg);
 
 static void sigint_handler(int signo)
 {
+  clientIsActive = 0;
+  (void)printf("Reg sigINT!\n");
+  sendto_named("Left the chat");
   (void)close(epoll_fd);
   (void)close(client_socket);
   sleep(2);
@@ -23,9 +29,7 @@ static void sigint_handler(int signo)
   exit(EXIT_SUCCESS);
 }
 
-void validate_convert_port(
-char *port_str,
-struct sockaddr_in *sock_addr)
+void validate_convert_port(char *port_str, struct sockaddr_in *sock_addr)
 {
  int port;
 
@@ -46,8 +50,7 @@ struct sockaddr_in *sock_addr)
    exit(EXIT_FAILURE);
  }
 
- sock_addr->sin_port = htons(
- (uint16_t)port);
+ sock_addr->sin_port = htons((uint16_t)port);
  printf("Port: %d\n",
  ntohs(sock_addr->sin_port));
 }
@@ -81,6 +84,23 @@ char *name_str  )
   name = name_str;
 }
 
+#define MAX_LINE        256
+struct sockaddr_in server_addr;
+char message[MAX_LINE];
+char named_message[MAX_LINE];
+
+static void sendto_named(char *msg){
+  snprintf(named_message, MAX_LINE, "%s%s%s", name, ": ", msg);
+    int ret = sendto(client_socket, named_message, strlen(named_message), 0, (struct sockaddr*)&server_addr, sizeof(server_addr));
+    //printf("update\n");
+
+    if (ret < 0) {
+       perror("send error\n");
+       (void)close(client_socket);
+       exit(1);
+    }
+}
+
 void recv_data(char *buffer)
 {
   int ret, len;
@@ -103,7 +123,7 @@ void recv_data(char *buffer)
     //printf ("L %d\n", name_i);
     //printf ("N %s\n", name_buf);
     //printf ("M %s\n", noname_buf);
-    printf ("\033[94m%s\033[0m: %s\n", name_buf, noname_buf);
+    printf (ANSI_COLOR_BLUE2 "%s" ANSI_COLOR_RESET ": %s\n" , name_buf, noname_buf);
 
   } else if (len == 0) {
       printf("Connection closed\n");
@@ -123,48 +143,44 @@ void (*handler)(int))
   }
 }
 
-#define MAX_LINE        256
-struct sockaddr_in server_addr;
-char message[MAX_LINE];
-char named_message[MAX_LINE];
+
 
 void* kb_reader(void* args){
-	for(;;){
+	while(clientIsActive){
 		//printf("Message: ");
 		fgets(message, MAX_LINE, stdin);
 		int c = strlen(message) - 1;
 		message[c] = '\0';
-		snprintf(named_message, MAX_LINE, "%s%s%s", name, ": ", message);
-    int ret = sendto(client_socket, named_message,
-    strlen(named_message), 0,
-    (struct sockaddr*)&server_addr,
-    sizeof(server_addr));
-    //printf("sendbuffer = %s\n", message);
+    sendto_named(message);
+		// snprintf(named_message, MAX_LINE, "%s%s%s", name, ": ", message);
+    // int ret = sendto(client_socket, named_message, strlen(named_message), 0, (struct sockaddr*)&server_addr, sizeof(server_addr));
+    // //printf("sendbuffer = %s\n", message);
 
-    if (ret < 0) {
-       perror("send error\n");
-       (void)close(client_socket);
-       exit(1);
-    }
+    // if (ret < 0) {
+    //    perror("send error1\n");
+    //    (void)close(client_socket);
+    //    exit(1);
+    // }
   }
 }
 
 void* updater(void* args){
-	for(;;){
+	while(clientIsActive){
 		//printf("Message: ");
-    sleep(1);
-		snprintf(named_message, MAX_LINE, "%s%s", name, ": upd");
-    int ret = sendto(client_socket, named_message,
-    strlen(named_message), 0,
-    (struct sockaddr*)&server_addr,
-    sizeof(server_addr));
-    //printf("update\n");
+    sendto_named("upd");
+		// snprintf(named_message, MAX_LINE, "%s%s", name, ": upd");
+    // int ret = sendto(client_socket, named_message,
+    // strlen(named_message), 0,
+    // (struct sockaddr*)&server_addr,
+    // sizeof(server_addr));
+    // //printf("update\n");
 
-    if (ret < 0) {
-       perror("send error\n");
-       (void)close(client_socket);
-       exit(1);
-    }
+    // if (ret < 0) {
+    //    perror("send error2\n");
+    //    (void)close(client_socket);
+    //    exit(1);
+    // }
+    sleep(1);
   }
 }
 
@@ -178,8 +194,7 @@ int main(int argc, char *argv[])
   char buffer[BUFFER_SIZE];
   char *str = "HI";
 
-  register_signal_handler(SIGINT,
-  sigint_handler);
+  register_signal_handler(SIGINT, sigint_handler);
 
   if (argc != 4) {
     printf("%s<port-number><ip-addr><name>\n",
@@ -190,15 +205,11 @@ int main(int argc, char *argv[])
   memset(&server_addr, 0,
   sizeof(server_addr));
   server_addr.sin_family = AF_INET;
-  validate_convert_port(argv[1],
-  &server_addr);
-  validate_convert_addr(argv[2],
-  &server_addr);
+  validate_convert_port(argv[1],  &server_addr);
+  validate_convert_addr(argv[2],  &server_addr);
   validate_convert_name(argv[3]);
 
-  client_socket = socket(AF_INET,
-                  SOCK_DGRAM,
-                  IPPROTO_UDP);
+  client_socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 
   if (client_socket < 0) {
     perror("socket");
@@ -219,14 +230,15 @@ int main(int argc, char *argv[])
 
   event.events = EPOLLIN | EPOLLET;
   event.data.fd = client_socket;
-  ret = epoll_ctl(epoll_fd, EPOLL_CTL_ADD,
-  client_socket, &event);
+  ret = epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_socket, &event);
 
   if (ret < 0) {
        perror("Epoll_ctl failed");
        (void)close(client_socket);
        return -3;
   }
+
+  clientIsActive = 1;
 
   pthread_create(&message_reader, NULL, kb_reader, NULL);
   pthread_create(&message_updater, NULL, updater, NULL);
