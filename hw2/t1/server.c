@@ -8,6 +8,7 @@
 
 #include <sys/socket.h>
 #include <netdb.h>
+#include "colors.h"
 
 #define BUFFER_SIZE 1024
 #define MAX_EVENTS 5
@@ -24,9 +25,7 @@ static void sigint_handler(int signo)
   exit(EXIT_SUCCESS);
 }
 
-void register_signal_handler(
-int signum,
-void (*handler)(int))
+void register_signal_handler(int signum, void (*handler)(int))
 {
   if (signal(signum, handler) == SIG_ERR) {
      printf("Cannot handle signal\n");
@@ -151,19 +150,32 @@ void add_usr(char *msg){
 char saved_buf[1024];
 int saved_buf_shift = 0;
 
-void recv_send(char *buffer, struct sockaddr_in *client_addr)
+void recv_send(char *buffer, struct sockaddr_in *client_addr_old)
 {
-  int len, ret;
+  int len, ret = 0;
   ssize_t nread;
+  struct sockaddr_in client_addr;
 
-  socklen_t client_addr_len = sizeof(
-  client_addr);
+  socklen_t client_addr_len = sizeof(client_addr);
 
-  len = recvfrom(server_socket,
-  buffer, BUFFER_SIZE, 0,
-  (struct sockaddr*)&client_addr,
-  &client_addr_len);
+  len = recvfrom(server_socket, buffer, BUFFER_SIZE, MSG_WAITALL, (struct sockaddr*)&client_addr, &client_addr_len);
 
+  //printf("Adddr addr_len %d, len is %d\n", client_addr_len, len);
+  //static struct sockaddr_in addr;
+  //char info[32];
+  //if(client_addr == NULL){
+  //  printf("client addr is null");
+  //}
+  //else{
+  //  memcpy(info, client_addr, client_addr_len);
+  //  info[31] = '\0';
+  printf("client addr as str"ANSI_COLOR_YELLOW"%d\n"ANSI_COLOR_RESET, client_addr.sin_port);
+  //}
+  //memcpy(&addr, client_addr, client_addr_len);
+
+    
+
+  //printf(ANSI_COLOR_YELLOW "Rcv len %d\n" ANSI_COLOR_RESET, len);
     char keystr[] = "upd";
     if (len > 0) {
     buffer[len] = '\0';
@@ -218,20 +230,22 @@ void recv_send(char *buffer, struct sockaddr_in *client_addr)
     buffer);
 }
 
+struct sockaddr_in client_addr;
+/// @brief 
+/// @param argc 
+/// @param argv 
+/// @return 
 int main(int argc, char *argv[])
 {
   int ready_fds;
   int ret;
-  struct sockaddr_in
-  server_addr,
-  client_addr;
+  struct sockaddr_in server_addr/*, client_addr*/;
   char buffer[BUFFER_SIZE];
   struct epoll_event 
   events[MAX_EVENTS];
   struct epoll_event event;
 
-  register_signal_handler(SIGINT,
-  sigint_handler);
+  register_signal_handler(SIGINT,  sigint_handler);
 
   if (argc != 2) {
     printf("%s <port-number>",
@@ -239,26 +253,19 @@ int main(int argc, char *argv[])
     exit(EXIT_FAILURE);
   }
 
-  memset(&server_addr, 0,
-  sizeof(server_addr));
+  memset(&server_addr, 0, sizeof(server_addr));
   server_addr.sin_family = AF_INET;
-  server_addr.sin_addr.s_addr =
-  INADDR_ANY;
-  validate_convert_port(argv[1],
-  &server_addr);
+  server_addr.sin_addr.s_addr = INADDR_ANY;
+  validate_convert_port(argv[1], &server_addr);
 
-  server_socket = socket(AF_INET,
-                  SOCK_DGRAM,
-                  IPPROTO_UDP);
+  server_socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 
   if (server_socket < 0) {
     perror("socket");
     return -1;
   }
 
-  ret = bind(server_socket,
-  (struct sockaddr*)&server_addr,
-  sizeof(server_addr));
+  ret = bind(server_socket, (struct sockaddr*)&server_addr, sizeof(server_addr));
 
   if (ret < 0) {
     perror("bind");
@@ -276,9 +283,7 @@ int main(int argc, char *argv[])
   event.events = EPOLLIN;
   event.data.fd = server_socket;
   
-  ret = epoll_ctl(epoll_fd, 
-  EPOLL_CTL_ADD, server_socket, 
-  &event);
+  ret = epoll_ctl(epoll_fd, EPOLL_CTL_ADD, server_socket, &event);
  
   if (ret < 0) {
     perror("Epoll_ctl failed");
@@ -288,19 +293,18 @@ int main(int argc, char *argv[])
   }
 
   while (1) {
-    ready_fds = epoll_wait(epoll_fd, 
-    events, MAX_EVENTS, -1);
-		
+    ready_fds = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
+		printf("event, %d\n", ready_fds);
     if (ready_fds < 0) {
-	perror("Epoll wait failed");
-	(void)close(epoll_fd);
-	(void)close(server_socket);
-   	break;
+perror("Epoll wait failed");
+(void)close(epoll_fd);
+(void)close(server_socket);
+   	  break;
     }
-    
+
     if (events[0].data.fd == server_socket) {
-	recv_send(buffer, &client_addr);
-    }	
+recv_send(buffer, &client_addr);
+    }
   }    
 
   (void)close(epoll_fd);
